@@ -3,16 +3,13 @@
 declare(strict_types=1);
 namespace muqsit\wilderness\utils;
 
-use pocketmine\level\ChunkLoader;
-use pocketmine\level\format\Chunk;
-use pocketmine\level\Level;
-use pocketmine\level\Position;
 use pocketmine\math\Vector3;
+use pocketmine\world\ChunkListener;
+use pocketmine\world\ChunkLoader;
+use pocketmine\world\format\Chunk;
+use pocketmine\world\World;
 
-class PopulatedChunkListener implements ChunkLoader{
-
-	/** @var Position */
-	private $position;
+class PopulatedChunkListener implements ChunkLoader, ChunkListener{
 
 	/** @var int */
 	private $x;
@@ -20,23 +17,22 @@ class PopulatedChunkListener implements ChunkLoader{
 	/** @var int */
 	private $z;
 
-	/** @var int */
-	private $loaderId = 0;
+	/** @var World */
+	private $world;
 
 	/** @var callable */
 	private $callback;
 
-	public function __construct(Level $level, int $chunkX, int $chunkZ, callable $callback){
-		$this->position = Position::fromObject(new Vector3($chunkX << 4, $chunkZ << 4), $level);
+	public function __construct(World $world, int $chunkX, int $chunkZ, callable $callback){
 		$this->x = $chunkX;
 		$this->z = $chunkZ;
-		$this->loaderId = Level::generateChunkLoaderId($this);
+		$this->world = $world;
 		$this->callback = $callback;
 	}
 
 	public function onChunkLoaded(Chunk $chunk) : void{
 		if(!$chunk->isPopulated()){
-			$this->getLevel()->populateChunk($this->getX(), $this->getZ());
+			$this->world->populateChunk($this->getX(), $this->getZ());
 			return;
 		}
 
@@ -48,24 +44,9 @@ class PopulatedChunkListener implements ChunkLoader{
 	}
 
 	private function onComplete() : void{
-		$this->getLevel()->unregisterChunkLoader($this, $this->getX(), $this->getZ());
+		$this->world->unregisterChunkLoader($this, $this->getX(), $this->getZ());
+		$this->world->unregisterChunkListener($this, $this->getX(), $this->getZ());
 		($this->callback)();
-	}
-
-	public function getLoaderId() : int{
-		return $this->loaderId;
-	}
-
-	public function isLoaderActive() : bool{
-		return true;
-	}
-
-	public function getPosition() : Position{
-		return $this->position;
-	}
-
-	public function getLevel() : Level{
-		return $this->position->getLevel();
 	}
 
 	public function getX() : int{

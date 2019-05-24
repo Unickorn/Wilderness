@@ -12,8 +12,8 @@ use muqsit\wilderness\utils\RegionUtils;
 
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
-use pocketmine\level\Level;
-use pocketmine\level\Position;
+use pocketmine\world\World;
+use pocketmine\world\Position;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\plugin\PluginBase;
@@ -62,24 +62,24 @@ class Wilderness extends PluginBase{
 		Lists::init();
 	}
 
-	public function teleportPlayerToWilderness(Player $player, int $x, int $y, int $z, Level $level) : void{
+	public function teleportPlayerToWilderness(Player $player, int $x, int $y, int $z, World $world) : void{
 		if($this->chunk_load_flood_protection){
 			PlayerSession::get($player)->setCommandLock(false);
 		}
 
-		if($level->isClosed()){
-			$player->sendMessage("Failed teleporting into the wilderness: the level was unloaded while trying to teleport you!");
+		if($world->isClosed()){
+			$player->sendMessage("Failed teleporting into the wilderness: the world was unloaded while trying to teleport you!");
 			return;
 		}
 
 		$pos = new Vector3($x, $y, $z);
-		if($player->teleport($this->do_safe_spawn ? $level->getSafeSpawn($pos) : Position::fromObject($pos, $level))){
+		if($player->teleport($this->do_safe_spawn ? $world->getSafeSpawn($pos) : Position::fromObject($pos, $world))){
 			$player->sendMessage($this->language->translate("on-teleport", [
 				"{PLAYER}" => $player->getName(),
 				"{X}" => $x,
 				"{Y}" => $y,
 				"{Z}" => $z,
-				"{LEVEL}" => $level->getFolderName()
+				"{LEVEL}" => $world->getFolderName()
 			]));
 		}
 	}
@@ -90,12 +90,12 @@ class Wilderness extends PluginBase{
 			return false;
 		}
 
-		$level = $sender->getLevel();
-		$levelname = $level->getFolderName();
-		if(!$this->levels_list->contains($levelname)){
+		$world = $sender->getWorld();
+		$worldname = $world->getFolderName();
+		if(!$this->levels_list->contains($worldname)){
 			$sender->sendMessage($this->language->translate("on-command-failed-badlevel", [
 				"{PLAYER}" => $sender->getName(),
-				"{LEVEL}" => $levelname
+				"{LEVEL}" => $worldname
 			]));
 			return false;
 		}
@@ -126,15 +126,15 @@ class Wilderness extends PluginBase{
 			"{PLAYER}" => $sender->getName(),
 			"{X}" => $x,
 			"{Z}" => $z,
-			"{LEVEL}" => $levelname
+			"{LEVEL}" => $worldname
 		]));
 
 		$cb = [$this, "teleportPlayerToWilderness"];
 		RegionUtils::onChunkGenerate(
-			$level, $chunkX, $chunkZ,
-			function() use($sender, $x, $z, $level, $cb) : void{
+			$world, $chunkX, $chunkZ,
+			function() use($sender, $x, $z, $world, $cb) : void{
 				if($sender->isOnline()){
-					$cb($sender, $x, $level->getHighestBlockAt($x, $z) + 1, $z, $level);
+					$cb($sender, $x, $world->getHighestBlockAt($x, $z) + 1, $z, $world);
 				}
 			}
 		);
